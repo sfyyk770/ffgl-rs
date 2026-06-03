@@ -1,0 +1,93 @@
+name: Build FFGL Plugin
+
+on:
+  workflow_dispatch:
+    inputs:
+      isf_name:
+        description: 'Plugin name (max 16 chars, alphanumeric + underscore)'
+        required: true
+        type: string
+      isf_source_b64:
+        description: 'ISF shader source code (base64 encoded)'
+        required: true
+        type: string
+      build_id:
+        description: 'Build ID for tracking (passed back in artifacts)'
+        required: false
+        type: string
+        default: ''
+
+jobs:
+  build-macos:
+    runs-on: macos-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout ffgl-rs
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Decode ISF source
+        run: |
+          echo "${{ inputs.isf_source_b64 }}" | base64 -d > /tmp/shader.isf
+          echo "ISF source written to /tmp/shader.isf"
+          echo "--- ISF Content ---"
+          head -20 /tmp/shader.isf
+          echo "---"
+
+      - name: Build FFGL Plugin
+        env:
+          ISF_SOURCE: /tmp/shader.isf
+          ISF_NAME: ${{ inputs.isf_name }}
+        run: |
+          echo "Building plugin: $ISF_NAME"
+          echo "ISF source: $ISF_SOURCE"
+          cargo build --release -p ffgl-isf 2>&1
+
+      - name: Package macOS bundle
+        run: |
+          PLUGIN_NAME="${{ inputs.isf_name }}"
+          BUNDLE_DIR="${PLUGIN_NAME}.bundle/Contents/MacOS"
+          mkdir -p "$BUNDLE_DIR"
+          cp target/release/libffgl_isf.dylib "$BUNDLE_DIR/$PLUGIN_NAME"
+          echo "Bundle created: ${PLUGIN_NAME}.bundle"
+          ls -la "$BUNDLE_DIR/"
+
+      - name: Upload macOS bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.isf_name }}-macos-bundle
+          path: "${{ inputs.isf_name }}.bundle"
+          retention-days: 7
+
+      - name: Write build info
+        run: |
+          cat > build-info.json << EOF
+          {
+            "buildId": "${{ inputs.build_id }}",
+            "pluginName": "${{ inputs.isf_name }}",
+            "platform": "macos",
+            "runner": "${{ runner.os }}",
+            "rustVersion": "$(rustc --version)",
+            "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          }
+          EOF
+
+      - name: Upload build info
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.isf_name }}-build-info
+          path: build-info.json
+          retention-days: 7
