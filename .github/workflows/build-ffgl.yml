@@ -82,7 +82,7 @@ jobs:
 
       - name: Build FFGL Plugin
         env:
-          ISF_SOURCE: shader.isf
+          ISF_SOURCE: ${{ github.workspace }}/shader.isf
           ISF_NAME: ${{ inputs.isf_name }}
         run: |
           echo "Building plugin: $ISF_NAME"
@@ -200,7 +200,7 @@ jobs:
       - name: Build FFGL Plugin
         shell: bash
         env:
-          ISF_SOURCE: shader.isf
+          ISF_SOURCE: ${{ github.workspace }}/shader.isf
           ISF_NAME: ${{ inputs.isf_name }}
         run: |
           echo "Building plugin: $ISF_NAME"
