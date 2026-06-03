@@ -41,33 +41,51 @@ jobs:
 
       - name: Decode ISF source
         run: |
-          echo "${{ inputs.isf_source_b64 }}" | base64 -d > /tmp/shader.isf
-          echo "ISF source written to /tmp/shader.isf"
-          echo "--- ISF Content ---"
-          head -20 /tmp/shader.isf
-          echo "---"
+          echo "${{ inputs.isf_source_b64 }}" | base64 -d > shader.isf
+          echo "ISF source written to shader.isf"
 
       - name: Patch ffgl-rs for UI improvements
+        shell: python
         run: |
-          echo "Patching handler.rs to remove asterisks"
-          sed -i '' 's/format!("*{}", ISF_NAME)/format!("{}", ISF_NAME)/g' ffgl-isf/src/handler.rs
-          
-          echo "Patching param.rs to remove groups"
-          sed -i '' 's/group: Some(name.clone())/group: None/g' ffgl-isf/src/param.rs
-          
-          echo "Patching param.rs to generate title-cased display names"
-          sed -i '' 's/let name = CString::new(name.clone())/let dname = name.clone().replace("_", " "); let dname = dname.split_whitespace().map(|s| { let mut c = s.chars(); match c.next() { None => String::new(), Some(f) => f.to_uppercase().collect::<String>() + c.as_str(), } }).collect::<Vec<_>>().join(" "); let name = CString::new(name.clone())/g' ffgl-isf/src/param.rs
-          
-          echo "Injecting display_name into SimpleParamInfo"
-          sed -i '' 's/                    name,/                    name, display_name: Some(dname.clone()),/g' ffgl-isf/src/param.rs
+          import os
+          handler_path = "ffgl-isf/src/handler.rs"
+          if os.path.exists(handler_path):
+              with open(handler_path, "r", encoding="utf-8") as f:
+                  content = f.read()
+              content = content.replace('format!("*{}", ISF_NAME)', 'format!("{}", ISF_NAME)')
+              with open(handler_path, "w", encoding="utf-8") as f:
+                  f.write(content)
+              print("Patched handler.rs")
+
+          param_path = "ffgl-isf/src/param.rs"
+          if os.path.exists(param_path):
+              with open(param_path, "r", encoding="utf-8") as f:
+                  content = f.read()
+              content = content.replace("group: Some(name.clone())", "group: None")
+              target_let = 'let name = CString::new(name.clone()).expect("Failed to create CString");'
+              replacement_let = (
+                  'let dname = name.clone().replace("_", " ");\n'
+                  '            let dname = dname.split_whitespace().map(|s| {\n'
+                  '                let mut c = s.chars();\n'
+                  '                match c.next() {\n'
+                  '                    None => String::new(),\n'
+                  '                    Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),\n'
+                  '                }\n'
+                  '            }).collect::<Vec<_>>().join(" ");\n'
+                  '            let name = CString::new(name.clone()).expect("Failed to create CString");'
+              )
+              content = content.replace(target_let, replacement_let)
+              content = content.replace("                    name,", "                    name, display_name: Some(dname.clone()),")
+              with open(param_path, "w", encoding="utf-8") as f:
+                  f.write(content)
+              print("Patched param.rs")
 
       - name: Build FFGL Plugin
         env:
-          ISF_SOURCE: /tmp/shader.isf
+          ISF_SOURCE: shader.isf
           ISF_NAME: ${{ inputs.isf_name }}
         run: |
           echo "Building plugin: $ISF_NAME"
-          echo "ISF source: $ISF_SOURCE"
           cargo build --release -p ffgl-isf 2>&1
 
       - name: Package macOS bundle
@@ -114,24 +132,120 @@ jobs:
         with:
           name: ${{ inputs.isf_name }}-macos-bundle
           path: dist/
-          retention-days: 7
+          retention-days: 1
 
-      - name: Write build info
+  build-windows:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout ffgl-rs
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Decode ISF source
+        shell: bash
         run: |
-          cat > build-info.json << EOF
-          {
-            "buildId": "${{ inputs.build_id }}",
-            "pluginName": "${{ inputs.isf_name }}",
-            "platform": "macos",
-            "runner": "${{ runner.os }}",
-            "rustVersion": "$(rustc --version)",
-            "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-          }
-          EOF
+          echo "${{ inputs.isf_source_b64 }}" | base64 -d > shader.isf
+          echo "ISF source written to shader.isf"
 
-      - name: Upload build info
+      - name: Patch ffgl-rs for UI improvements
+        shell: python
+        run: |
+          import os
+          handler_path = "ffgl-isf/src/handler.rs"
+          if os.path.exists(handler_path):
+              with open(handler_path, "r", encoding="utf-8") as f:
+                  content = f.read()
+              content = content.replace('format!("*{}", ISF_NAME)', 'format!("{}", ISF_NAME)')
+              with open(handler_path, "w", encoding="utf-8") as f:
+                  f.write(content)
+              print("Patched handler.rs")
+
+          param_path = "ffgl-isf/src/param.rs"
+          if os.path.exists(param_path):
+              with open(param_path, "r", encoding="utf-8") as f:
+                  content = f.read()
+              content = content.replace("group: Some(name.clone())", "group: None")
+              target_let = 'let name = CString::new(name.clone()).expect("Failed to create CString");'
+              replacement_let = (
+                  'let dname = name.clone().replace("_", " ");\n'
+                  '            let dname = dname.split_whitespace().map(|s| {\n'
+                  '                let mut c = s.chars();\n'
+                  '                match c.next() {\n'
+                  '                    None => String::new(),\n'
+                  '                    Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),\n'
+                  '                }\n'
+                  '            }).collect::<Vec<_>>().join(" ");\n'
+                  '            let name = CString::new(name.clone()).expect("Failed to create CString");'
+              )
+              content = content.replace(target_let, replacement_let)
+              content = content.replace("                    name,", "                    name, display_name: Some(dname.clone()),")
+              with open(param_path, "w", encoding="utf-8") as f:
+                  f.write(content)
+              print("Patched param.rs")
+
+      - name: Build FFGL Plugin
+        shell: bash
+        env:
+          ISF_SOURCE: shader.isf
+          ISF_NAME: ${{ inputs.isf_name }}
+        run: |
+          echo "Building plugin: $ISF_NAME"
+          cargo build --release -p ffgl-isf 2>&1
+
+      - name: Package Windows DLL
+        shell: bash
+        run: |
+          PLUGIN_NAME="${{ inputs.isf_name }}"
+          mkdir -p dist
+          cp target/release/ffgl_isf.dll dist/$PLUGIN_NAME.dll
+          echo "Windows DLL created: dist/$PLUGIN_NAME.dll"
+          ls -la dist/
+
+      - name: Upload Windows DLL
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ inputs.isf_name }}-build-info
-          path: build-info.json
+          name: ${{ inputs.isf_name }}-windows-dll
+          path: dist/
+          retention-days: 1
+
+  package-release:
+    runs-on: ubuntu-latest
+    needs: [build-macos, build-windows]
+    steps:
+      - name: Download macOS bundle
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.isf_name }}-macos-bundle
+          path: dist
+
+      - name: Download Windows DLL
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.isf_name }}-windows-dll
+          path: dist
+
+      - name: Verify release package contents
+        run: |
+          echo "Combined dist contents:"
+          ls -R dist/
+
+      - name: Upload combined package
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.isf_name }}-plugin-bundle
+          path: dist/
           retention-days: 7
