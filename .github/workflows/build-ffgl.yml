@@ -59,17 +59,47 @@ jobs:
       - name: Package macOS bundle
         run: |
           PLUGIN_NAME="${{ inputs.isf_name }}"
-          BUNDLE_DIR="${PLUGIN_NAME}.bundle/Contents/MacOS"
+          CONTENTS_DIR="dist/${PLUGIN_NAME}.bundle/Contents"
+          BUNDLE_DIR="$CONTENTS_DIR/MacOS"
           mkdir -p "$BUNDLE_DIR"
           cp target/release/libffgl_isf.dylib "$BUNDLE_DIR/$PLUGIN_NAME"
-          echo "Bundle created: ${PLUGIN_NAME}.bundle"
+          
+          # Create Info.plist to conform to macOS bundle specifications
+          cat > "$CONTENTS_DIR/Info.plist" << EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+          	<key>CFBundleDevelopmentRegion</key>
+          	<string>English</string>
+          	<key>CFBundleExecutable</key>
+          	<string>${PLUGIN_NAME}</string>
+          	<key>CFBundleIdentifier</key>
+          	<string>com.ffgl-rs.${PLUGIN_NAME}</string>
+          	<key>CFBundleInfoDictionaryVersion</key>
+          	<string>6.0</string>
+          	<key>CFBundleName</key>
+          	<string>${PLUGIN_NAME}</string>
+          	<key>CFBundlePackageType</key>
+          	<string>BNDL</string>
+          	<key>CFBundleSignature</key>
+          	<string>????</string>
+          	<key>CFBundleVersion</key>
+          	<string>1.0</string>
+          	<key>CFBundleShortVersionString</key>
+          	<string>1.0</string>
+          </dict>
+          </plist>
+          EOF
+          
+          echo "Bundle created: dist/${PLUGIN_NAME}.bundle"
           ls -la "$BUNDLE_DIR/"
 
       - name: Upload macOS bundle
         uses: actions/upload-artifact@v4
         with:
           name: ${{ inputs.isf_name }}-macos-bundle
-          path: "${{ inputs.isf_name }}.bundle"
+          path: dist/
           retention-days: 7
 
       - name: Write build info
