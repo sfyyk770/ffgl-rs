@@ -47,6 +47,20 @@ jobs:
           head -20 /tmp/shader.isf
           echo "---"
 
+      - name: Patch ffgl-rs for UI improvements
+        run: |
+          echo "Patching handler.rs to remove asterisks"
+          sed -i '' 's/format!("*{}", ISF_NAME)/format!("{}", ISF_NAME)/g' ffgl-isf/src/handler.rs
+          
+          echo "Patching param.rs to remove groups"
+          sed -i '' 's/group: Some(name.clone())/group: None/g' ffgl-isf/src/param.rs
+          
+          echo "Patching param.rs to generate title-cased display names"
+          sed -i '' 's/let name = CString::new(name.clone())/let dname = name.clone().replace("_", " "); let dname = dname.split_whitespace().map(|s| { let mut c = s.chars(); match c.next() { None => String::new(), Some(f) => f.to_uppercase().collect::<String>() + c.as_str(), } }).collect::<Vec<_>>().join(" "); let name = CString::new(name.clone())/g' ffgl-isf/src/param.rs
+          
+          echo "Injecting display_name into SimpleParamInfo"
+          sed -i '' 's/                    name,/                    name, display_name: Some(dname.clone()),/g' ffgl-isf/src/param.rs
+
       - name: Build FFGL Plugin
         env:
           ISF_SOURCE: /tmp/shader.isf
