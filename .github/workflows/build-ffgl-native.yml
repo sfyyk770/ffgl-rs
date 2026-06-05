@@ -48,30 +48,18 @@ jobs:
 
           # Write Info.plist
           PLUGIN_NAME_LOWER=$(echo "${PLUGIN_NAME}" | tr '[:upper:]' '[:lower:]')
-          cat > "$CONTENTS_DIR/Info.plist" << PLISTEOF
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-	<key>CFBundleDevelopmentRegion</key>
-	<string>English</string>
-	<key>CFBundleExecutable</key>
-	<string>${PLUGIN_NAME}</string>
-	<key>CFBundleIdentifier</key>
-	<string>com.resplug.${PLUGIN_NAME_LOWER}</string>
-	<key>CFBundleInfoDictionaryVersion</key>
-	<string>6.0</string>
-	<key>CFBundlePackageType</key>
-	<string>BNDL</string>
-	<key>CFBundleSignature</key>
-	<string>????</string>
-	<key>CFBundleVersion</key>
-	<string>1.0</string>
-	<key>CSResourcesFileMapped</key>
-	<string>yes</string>
-</dict>
-</plist>
-PLISTEOF
+          printf '<?xml version="1.0" encoding="UTF-8"?>\n' > "$CONTENTS_DIR/Info.plist"
+          printf '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n' >> "$CONTENTS_DIR/Info.plist"
+          printf '<plist version="1.0">\n<dict>\n' >> "$CONTENTS_DIR/Info.plist"
+          printf '\t<key>CFBundleDevelopmentRegion</key>\n\t<string>English</string>\n' >> "$CONTENTS_DIR/Info.plist"
+          printf '\t<key>CFBundleExecutable</key>\n\t<string>%s</string>\n' "$PLUGIN_NAME" >> "$CONTENTS_DIR/Info.plist"
+          printf '\t<key>CFBundleIdentifier</key>\n\t<string>com.resplug.%s</string>\n' "$PLUGIN_NAME_LOWER" >> "$CONTENTS_DIR/Info.plist"
+          printf '\t<key>CFBundleInfoDictionaryVersion</key>\n\t<string>6.0</string>\n' >> "$CONTENTS_DIR/Info.plist"
+          printf '\t<key>CFBundlePackageType</key>\n\t<string>BNDL</string>\n' >> "$CONTENTS_DIR/Info.plist"
+          printf '\t<key>CFBundleSignature</key>\n\t<string>????</string>\n' >> "$CONTENTS_DIR/Info.plist"
+          printf '\t<key>CFBundleVersion</key>\n\t<string>1.0</string>\n' >> "$CONTENTS_DIR/Info.plist"
+          printf '\t<key>CSResourcesFileMapped</key>\n\t<string>yes</string>\n' >> "$CONTENTS_DIR/Info.plist"
+          printf '</dict>\n</plist>\n' >> "$CONTENTS_DIR/Info.plist"
 
           # Compile
           clang++ -O3 -std=c++11 -dynamiclib -undefined dynamic_lookup \
