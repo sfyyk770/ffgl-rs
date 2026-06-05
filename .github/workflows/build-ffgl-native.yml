@@ -47,30 +47,31 @@ jobs:
           mkdir -p "$BINARY_DIR"
 
           # Write Info.plist
-          cat > "$CONTENTS_DIR/Info.plist" << EOF
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-          <dict>
-          	<key>CFBundleDevelopmentRegion</key>
-          	<string>English</string>
-          	<key>CFBundleExecutable</key>
-          	<string>${PLUGIN_NAME}</string>
-          	<key>CFBundleIdentifier</key>
-          	<string>com.resplug.${PLUGIN_NAME.toLowerCase()}</string>
-          	<key>CFBundleInfoDictionaryVersion</key>
-          	<string>6.0</string>
-          	<key>CFBundlePackageType</key>
-          	<string>BNDL</string>
-          	<key>CFBundleSignature</key>
-          	<string>????</string>
-          	<key>CFBundleVersion</key>
-          	<string>1.0</string>
-          	<key>CSResourcesFileMapped</key>
-          	<string>yes</string>
-          </dict>
-          </plist>
-          EOF
+          PLUGIN_NAME_LOWER=$(echo "${PLUGIN_NAME}" | tr '[:upper:]' '[:lower:]')
+          cat > "$CONTENTS_DIR/Info.plist" << PLISTEOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>English</string>
+	<key>CFBundleExecutable</key>
+	<string>${PLUGIN_NAME}</string>
+	<key>CFBundleIdentifier</key>
+	<string>com.resplug.${PLUGIN_NAME_LOWER}</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundlePackageType</key>
+	<string>BNDL</string>
+	<key>CFBundleSignature</key>
+	<string>????</string>
+	<key>CFBundleVersion</key>
+	<string>1.0</string>
+	<key>CSResourcesFileMapped</key>
+	<string>yes</string>
+</dict>
+</plist>
+PLISTEOF
 
           # Compile
           clang++ -O3 -std=c++11 -dynamiclib -undefined dynamic_lookup \
